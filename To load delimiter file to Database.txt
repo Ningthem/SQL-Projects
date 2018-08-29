@@ -1,0 +1,97 @@
+declare @row_string varchar(5000) -- to store a particular row by using cursor
+,@first_string varchar(5000)--to store first string of the raw data, to be used in findind no. of delimiters
+,@delim_count int -- to store count of delimiters in a single string
+,@delimiter varchar(5) --to store the required delimiter value
+,@count int --used as a counter
+,@multicol varchar(1000) --to store a single column details
+,@finalcol varchar(5000) --to store the columns made by multicol. This is the set of all columns at last. To generate SQL query.
+,@string varchar(5000) --to store a string to manilulate
+,@singcol varchar(100)
+,@columns varchar(5000) --used for selecting rows to columnwise, for transposing. to generate SQL which will be generated
+,@pointer char(1) --you know right
+,@count1 int --used to sttore delimiter count
+,@len int --you know right
+,@strtemp varchar(1000) -- to store data in a single column
+
+create table #rowdata (first_data VARCHAR(5000)) --table to store the raw data
+set @delimiter=','
+--to load the data from file to SQL Server
+bulk
+insert #rowdata
+from 'C:\Users\yumnams\Documents\CLAIM.csv'
+with
+(
+ROWTERMINATOR = '\n'
+)
+--the data contains NULL rows, so filtering the NULLS out
+declare @data table (row_data varchar(4000))
+insert into @data select * from #rowdata where first_data is not NULL
+drop table #rowdata
+--to coun
+set @first_string=(select top 1 * from @data)
+set @delim_count= (select len(@first_string)-len(replace(@first_string,@delimiter,'')))
+set @count=2;set @multicol='';set @finalcol=''
+
+while @count<@delim_count+2
+begin 
+set @multicol='Column'+ltrim(@count)+' varchar(200),'
+set @finalcol=@finalcol+@multicol
+set @count=@count+1
+end
+
+create table #final (Column1 varchar(200))
+
+set @finalcol='alter table #final add '+substring(@finalcol,1,len(@finalcol)-1)
+execute (@finalcol)
+
+declare curRow cursor for select row_data from @data
+open curRow
+fetch next from curRow into @row_string
+
+while @@fetch_status=0
+begin 
+
+set @string=(select ltrim(@row_string+'|'))
+
+set @string=(select replace(@string,@delimiter,'|'))
+set @string=(select replace(@string,'"',''))
+
+create table #aaa (row int,col varchar(500))
+set @len=len(@string)+1
+set @count=1
+set @strtemp=''
+set @count1=1
+while @count<@len
+begin
+set @pointer=substring(@string,@count,1)
+if @pointer!='|' 
+	begin 
+	set @strtemp=rtrim(@strtemp+@pointer) 
+	end			
+if @pointer='|'
+begin
+	insert into #aaa values (@count1,@strtemp)
+	set @count1=@count1+1
+	set @strtemp=''
+	end
+set @count=@count+1
+end
+
+set @count=1; set @columns=''
+while @count<@count1
+begin 
+set @singcol='(select col from #aaa where row='+ltrim(@count)+') col'+ltrim(@count)+','
+set @columns=@columns+@singcol
+set @count=@count+1
+end
+set @columns='select '+ substring(@columns,1,(len(@columns)-1))
+
+insert into #final exec (@columns)
+drop table #aaa
+fetch next from curRow into @row_string
+end
+select * from #final
+drop table #final
+close curRow 
+deallocate curRow 
+

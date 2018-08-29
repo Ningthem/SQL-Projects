@@ -1,0 +1,35 @@
+declare @table1 varchar(100)
+declare @table2 varchar(100)
+set @TABLE1='CLAIM'
+set @TABLE2='LOSS'
+declare @select table (
+	TABLE_NAME varchar(100),
+	COLUMN_NAME varchar(100))
+declare @Final_Join table (
+	Left_Table varchar(100),
+	Join_Column varchar(100),
+	Right_Table varchar(100))
+declare @No_Rows_msg varchar (100)
+set @No_Rows_msg='Ooops!!! The two tables cannot be joined directly:P... Huhahaha!!! Please try other Joins'
+insert into @select
+select TABLE_NAME,COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME IN
+(
+SELECT  distinct o.name
+FROM sys.indexes AS i 
+INNER JOIN sys.objects AS o ON i.OBJECT_ID = o.OBJECT_ID 
+where left(o.name,3) not in ('sys','que')  and left(o.name+'    ',4)<>'TEMP'
+and right(COLUMN_NAME,3)='_ID' )
+
+insert into @Final_Join
+select s1.TABLE_NAME as Left_Table,s1.COLUMN_NAME as Join_Column, s2.TABLE_NAME as Right_Table
+from @select s1 inner join @select s2 on s1.COLUMN_NAME=s2.COLUMN_NAME
+where s1.TABLE_NAME=@table1 and s2.TABLE_NAME=@table2
+
+declare @rows int
+set @rows=(select @@rowcount)
+if @rows>0
+select * from @Final_Join
+else
+select @No_Rows_msg as Ouput
+
+

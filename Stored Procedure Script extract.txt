@@ -1,0 +1,5 @@
+select o.name, m.definition
+ from master.sys.system_sql_modules m
+  join master.sys.system_objects o
+    ON o.object_id = m.object_id
+	and o.name='sp_who2'

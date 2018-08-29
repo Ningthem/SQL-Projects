@@ -1,0 +1,70 @@
+
+declare @table1 varchar(100)
+declare @table2 varchar(100)
+set @TABLE1='CLAIM'
+set @TABLE2='PAYMENT'
+declare @select table (
+	TABLE_NAME varchar(100),
+	COLUMN_NAME varchar(100))
+declare @selectL1 table (
+	TABLE_NAMEL1 varchar(100),
+	TABLE_NAME varchar(100),
+	COLUMN_NAME varchar(100))
+declare @selectL2 table (
+	TABLE_NAMEL1 varchar(100),
+	TABLE_NAMEL2 varchar(100),
+	TABLE_NAME varchar(100),
+	COLUMN_NAME varchar(100))
+declare @selectR1 table (
+	TABLE_NAMER1 varchar(100),
+	TABLE_NAME varchar(100),
+	COLUMN_NAME varchar(100))
+declare @Final_Join table (
+	Left_Table varchar(100),
+	First_Join varchar(100),
+	Second_Join varchar(100),
+	Right_Table varchar(100))
+declare @No_Rows_msg varchar (100)
+set @No_Rows_msg='Ooops!!! The two tables cannot be joined :P... Huhahaha. Try other Ways'
+insert into @select
+select TABLE_NAME,COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME IN
+(
+SELECT  distinct o.name
+FROM sys.indexes AS i 
+INNER JOIN sys.objects AS o ON i.OBJECT_ID = o.OBJECT_ID 
+where left(o.name,3) not in ('sys','que')  and left(o.name+'    ',4)<>'TEMP'
+and right(COLUMN_NAME,3)='_ID')
+
+insert into @selectL1
+select @table1,s.TABLE_NAME,s.COLUMN_NAME from @select s
+inner join (select * from @select where TABLE_NAME=@table1 ) s1 on s.COLUMN_NAME=s1.COLUMN_NAME
+
+insert into @selectL2
+select @table1,L1.TABLE_NAME,sf.TABLE_NAME,sf.COLUMN_NAME from @selectL1 L1
+inner join @select s on L1.TABLE_NAME=s.TABLE_NAME
+inner join @select sf on s.TABLE_NAME=sf.TABLE_NAME
+
+insert into @selectR1
+select distinct @table2,s.TABLE_NAME,s.COLUMN_NAME from @select s
+inner join 
+(select * from @select where TABLE_NAME=@table2) s2 on s.COLUMN_NAME=s2.COLUMN_NAME
+
+insert into @Final_Join
+select distinct TABLE_NAMEL1,TABLE_NAMEL2,S1.TABLE_NAME, TABLE_NAMER1 from @selectL2 L2
+inner join
+(select TABLE_NAMER1,R1.TABLE_NAME as TABLE_NAME1,R1.COLUMN_NAME as COLUMN_NAME1,s.TABLE_NAME
+,s.COLUMN_NAME from @selectR1 R1 inner join @select s
+on s.TABLE_NAME=R1.TABLE_NAME ) S1
+on S1.COLUMN_NAME=L2.COLUMN_NAME
+order by 1,2,3,4
+
+declare @rows int
+set @rows=(select @@rowcount)
+
+if @rows>0
+select * from @Final_Join
+else
+select @No_Rows_msg as Ouput
+
+
+

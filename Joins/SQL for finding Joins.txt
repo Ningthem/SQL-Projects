@@ -1,0 +1,91 @@
+declare @table1 varchar(100); set @TABLE1='CLAIM'
+declare @table2 varchar(100); set @TABLE2='PAYMENT'
+declare @First_Table varchar(100)
+declare @Join_Table1 varchar(100)
+declare @Join_Table2 varchar(100)
+declare @Target_Table varchar(100)
+declare @col1 varchar (50)
+declare @col2 varchar (50)
+declare @col3 varchar (50)
+declare @select table (
+	TABLE_NAME varchar(100),
+	COLUMN_NAME varchar(100))
+declare @selectL2 table (
+	TABLE_NAMEL1 varchar(100),
+	TABLE_NAMEL2 varchar(100),
+	TABLE_NAME varchar(100),
+	COLUMN_NAME varchar(100))
+declare @selectR1 table (
+	TABLE_NAMER1 varchar(100),
+	TABLE_NAME varchar(100),
+	COLUMN_NAME varchar(100))
+declare @Final_Select table (
+	First_Table varchar(100),
+	Join_Table1 varchar(100),
+	Join_Table2 varchar(100),
+	Target_Table varchar(100))
+declare @Final table (
+	First_Table varchar(100), Join12 varchar(100),
+	Join_Table1 varchar(100), Join23 varchar(100),
+	Join_Table2 varchar(100), Join34 varchar(100),
+	Target_Table varchar(100))
+declare @row_count int
+declare @msg varchar(100)
+select @msg='Opps!!!...The Tables cannot be joined. Huhahaha!!!'
+insert into @select
+select TABLE_NAME,COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME IN
+(
+SELECT  distinct o.name
+FROM sys.indexes AS i 
+INNER JOIN sys.objects AS o ON i.OBJECT_ID = o.OBJECT_ID 
+where left(o.name,3) not in ('sys','que')  and left(o.name+'    ',4)<>'TEMP'
+and right(COLUMN_NAME,3)='_ID')
+
+insert into @selectL2
+select @table1,L1.TABLE_NAME,sf.TABLE_NAME,sf.COLUMN_NAME from (select @table1 as TABLE_NAMEL1 ,s.TABLE_NAME,s.COLUMN_NAME from @select s
+inner join (select * from @select where TABLE_NAME=@table1 ) s1 on s.COLUMN_NAME=s1.COLUMN_NAME) L1
+inner join @select s on L1.TABLE_NAME=s.TABLE_NAME
+inner join @select sf on s.TABLE_NAME=sf.TABLE_NAME
+
+insert into @selectR1
+select distinct @table2,s.TABLE_NAME,s.COLUMN_NAME from @select s
+inner join (select * from @select where TABLE_NAME=@table2) s2 on s.COLUMN_NAME=s2.COLUMN_NAME
+
+insert into @Final_Select
+select distinct TABLE_NAMEL1,TABLE_NAMEL2,S1.TABLE_NAME, TABLE_NAMER1 from @selectL2 L2
+inner join
+(select TABLE_NAMER1,R1.TABLE_NAME as TABLE_NAME1,R1.COLUMN_NAME as COLUMN_NAME1,s.TABLE_NAME
+,s.COLUMN_NAME from @selectR1 R1 inner join @select s
+on s.TABLE_NAME=R1.TABLE_NAME ) S1
+on S1.COLUMN_NAME=L2.COLUMN_NAME
+order by 1,2,3,4
+set @row_count=@@rowcount
+
+declare curcol cursor for 
+  select First_Table,Join_Table1,Join_Table2,Target_Table
+  from @Final_Select
+open curcol
+
+fetch next from curcol  
+into @First_Table,@Join_Table1,@Join_Table2,@Target_Table
+
+while @@fetch_status = 0
+begin
+		set @col1 = (select top 1 s1.COLUMN_NAME from @select s1 inner join @select s2 on s1.COLUMN_NAME=s2.COLUMN_NAME 
+		where s1.TABLE_NAME=@First_Table and s2.TABLE_NAME=@Join_Table1)
+		set @col2 = (select top 1 s1.COLUMN_NAME from @select s1 inner join @select s2 on s1.COLUMN_NAME=s2.COLUMN_NAME 
+		where s1.TABLE_NAME=@Join_Table1 and s2.TABLE_NAME=@Join_Table2)
+		set @col3 = (select top 1 s1.COLUMN_NAME from @select s1 inner join @select s2 on s1.COLUMN_NAME=s2.COLUMN_NAME 
+		where s1.TABLE_NAME=@Join_Table2 and s2.TABLE_NAME=@Target_Table)
+		insert into @Final values (@First_Table,@col1,@Join_Table1,@col2,@Join_Table2,@col3,@Target_Table)
+		
+fetch next from curcol  
+into @First_Table,@Join_Table1,@Join_Table2,@Target_Table
+end 
+close curcol 
+deallocate curcol 
+
+if @row_count>0
+select * from @Final
+else
+select @msg

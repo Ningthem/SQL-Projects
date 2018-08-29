@@ -1,0 +1,61 @@
+declare @code varchar(1000);declare @code1 varchar(1000);declare @code2 varchar(1000);declare @code3 varchar(1000);
+declare @code4 varchar(1000);declare @code5 varchar(1000);declare @code6 varchar(1000);
+declare @str_temp varchar(1000);declare @metric_name char(6);
+create table #metric (m_name char(6))
+declare @sql varchar(5000);
+
+--Enter_Metric Name Here--
+set @metric_name='SIRR0S';
+
+set @sql='select '+ ''''+@metric_name+''''+ 'as METRIC_NAME,'
+insert into #metric select @metric_name
+
+set @code1='S - SIL,T - TDS,A - ADS,X - SAP,'
+set @code2='I - Incoming,L - Loaded,O - Outgoing,'
+set @code3='N - New,R - Rejects,A - All(New & Rejects),U - ATLAS Ledger Site UK01,Z - ATLAS Ledger Site ZA01,P - ATLAS Ledger Site PI01,G - Generated Commision Postings Record,'
+set @code4='R - Record Count,F - Financial Total,P - Count of Policies,V - Count of Policy Version,'
+set @code5='A - AIS,U - UKRIS,X - SAP,S - Stage2,C - Altas Confirmed,P - Atlas Pipeline,L - Atlas,0 - UKRIS CLAIMS,1 - AIS CCS,2 - SAUNA CCS,3 - EPOQ CCS,4 - UKRIS CCS,5 - B+P CCS,6 - ATL Claims ,7 - Syn Claims,8 - PAW Claims,K - IP Premium,D - IP Claims,$ - Synergy Premium,F - Profin Claims,I - Ireland Claims,N - Ireland Premium,'
+set @code6='S - SIL,T - TDS,X - SAP,R - Rejection,D - Filtered from TDS(SIL only),C - TDS Cover Snapshot,M - TDS Period Measures,1 - ADS Office Split,2 - ADS Profit Centre Split,3 - ADS Txn and Reins Type Split,4 - ADS Reinsurer Split,F - Filtered from SAP,Z - Cover Snapshot SCS,A - Added Records for TDS (added in SIL),'
+
+declare @count int
+declare @count1 int
+declare @pos int
+set @count1=0
+declare @str_len int
+
+create table #table (col1 varchar(100),col2 varchar(200),col3 varchar(200))
+
+while @count1<6
+begin 
+	if @count1=0 set @code=@code1;if @count1=1 set @code=@code2;
+	if @count1=2 set @code=@code3;if @count1=3 set @code=@code4;
+	if @count1=4 set @code=@code5;if @count1=5 set @code=@code6;
+	set @count=0
+	set @str_len=len(@code)
+	while @count<@str_len
+	begin
+		set @pos= patindex('%,%',@code)
+		insert into #table select @count1, (substring(@code,0,@pos)),(substring(@code,4,@pos-4))
+		set @code=substring(@code,@pos+1,len(@code)-(@pos))
+		set @count=@count+@pos
+	end	
+set @count1=@count1+1
+end
+
+set @count=0
+
+while @count<len(@metric_name)
+begin
+	if @count=0 set @code='SYSTEM';if @count=1 set @code='DIRECTION_OF_FLOW';
+	if @count=2 set @code='TYPE_OF_RECORDS';if @count=3 set @code='METRIC';
+	if @count=4 set @code='SOURCE_SYSTEM';if @count=5 set @code='TARGET';
+	set @sql=@sql+'(select T1.col3 from #table T1 
+			 inner join #metric M1 on left(T1.col2,1)=substring(M1.m_name,'+convert(varchar(5),@count+1)+ ',1) and T1.col1='+convert(varchar(5),@count,1)+') as '+ @code +','
+	set @count=@count+1
+end
+set @sql=substring(@sql,1,len(@sql)-1)
+
+execute (@sql)
+
+drop table #table
+drop table #metric
