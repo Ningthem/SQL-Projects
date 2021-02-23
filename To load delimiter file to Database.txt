@@ -11,7 +11,7 @@ declare @row_string varchar(5000) -- to store a particular row by using cursor
 ,@pointer char(1) --you know right
 ,@count1 int --used to sttore delimiter count
 ,@len int --you know right
-,@strtemp varchar(1000) -- to store data in a single column
+,@strtemp varchar(1000) -- to store data in a single column | Test Message
 
 create table #rowdata (first_data VARCHAR(5000)) --table to store the raw data
 set @delimiter=','
